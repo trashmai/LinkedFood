@@ -1,0 +1,143 @@
+<html>
+
+<head>
+    <meta charset="UTF-8">
+
+    <link rel="stylesheet" type="text/css" href="leaflet.css">
+    <link rel="stylesheet" type="text/css" href="jquery-ui.css">
+
+    <script type="text/javascript" src="jquery.js"></script>
+    <script type="text/javascript" src="jquery.microdata.js"></script>
+    <script type="text/javascript" src="jquery.microdata.json.js"></script>
+    <script type="text/javascript" src="jquery-ui.min.js"></script>
+    <script type="text/javascript" src="rdflib.js"></script>
+    <!--script type="text/javascript" src="content.js"></script-->
+    <script type="text/javascript" src="leaflet-src.js"></script>
+    <script type="text/javascript" src="linkedfood.js"></script>
+    <script type="text/javascript" src="showLinkedFood.js"></script>
+    <script type="text/javascript" src="moment.min.js"></script>
+    <!--script type="text/javascript" src="md5.min.js"></script-->
+
+    <style>
+        .css_table {
+            display: table;
+        }
+        
+        .css_tr {
+            display: table-row;
+        }
+        
+        .css_td {
+            display: table-cell;
+            vertical-align: top;
+        }
+        
+        .item {
+            text-decoration: underline;
+            cursor: pointer;
+        }
+        
+        .detail.selected,
+        .item.selected {
+            background-color: aqua;
+        }
+        
+        .detail:hover,
+        .item:hover {
+            background-color: chartreuse;
+        }
+        
+        .highlight_txt {
+            color: red;
+            background-color: yellow;
+        }
+        
+        #blind.loading {
+            background-color: rgba(80, 80, 80, 0.5);
+            z-index: 10000;
+            width: 100%!important;
+            height: 100%!important;
+            display: block!important;
+            overflow: auto;
+        }
+        
+        ul.ui-tabs {
+            background: rgba(0, 0, 0, 0);
+            border-top: 0;
+            border-left: 0;
+            border-right: 0;
+        }
+        
+        #tabs {
+            border: 0;
+        }
+        
+        .green {
+            color: green;
+        }
+        
+        .red {
+            color: red;
+        }
+        
+        .detail {
+            text-decoration: underline;
+            cursor: pointer;
+        }
+    </style>
+</head>
+
+<body style='margin:0 0 0 0;'>
+    <div class='css_table' style='width:512px; height:600px;'>
+        <div id='blind' style='color:white; font-weight: bold; display:none; position:fixed;'></div>
+        <div class='css_tr'>
+            <div class='css_td' style='height: 20%'>
+                <div class='css_table' style='height:100%; width:100%;'>
+                    <div class='css_tr'>
+                        <div class='css_td' style='width:50%'>
+                            <div id='show_ingredients' style='height:100%; overflow-y:scroll'>食材
+                            </div>
+                        </div>
+                        <div class='css_td'>
+                            <div id='show_taps' style='height:100%; overflow-y:scroll'>履歷
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class='css_tr'>
+            <div class='css_td' style='height:80%; width:100%;'>
+                <div id='tabs' style='height:100%;'>
+                    <ul>
+                        <li id='tab-map-store'><a href="#tabs-map-store">哪裡買</a></li>
+                        <li id='tab-map-restaurant'><a href="#tabs-map-restaurant">哪裡吃</a></li>
+                        <li id='tab-price-info'><a href="#tabs-price-info">推不推</a></li>
+                        <li id='tab-tap-info'><a href="#tabs-tap-info">看仔細</a></li>
+                    </ul>
+                    <div id='tabs-map-store' style='height:calc(100% - 4.5em);'>
+                        <div id='map_store' style='height:100%;'></div>
+                    </div>
+                    <div id='tabs-map-restaurant' style='height:calc(100% - 4.5em);'>
+                        <div id='map_restaurant' style='height:100%;'></div>
+                    </div>
+                    <div id='tabs-price-info' style='height:calc(100% - 4.5em); width:100%; position:absolute; overflow-y:auto; overflow-x:hidden'>
+                        <div>
+                            <h2>資料來源 TWFOOD.CC 台灣當季蔬果</h2>
+                        </div>
+                        <div>指標解讀：分數大於0表示推薦。<br/>產量指數高代表吃得當季、吃得新鮮；<br/>價格指數高代表買得便宜划算。</div>
+                        <div id='price_info' style='height:90%;'></div>
+                    </div>
+                    <div id='tabs-tap-info' style='height:calc(100% - 4.5em); width:100%; position:absolute; overflow-y:auto; overflow-x:hidden'>
+                        <div id='tap_info' style='height:100%; width:470px;'>
+                            <div>請先選擇一項產銷履歷~</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</body>
+
+
+</html>

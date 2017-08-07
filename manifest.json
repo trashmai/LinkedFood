@@ -1,0 +1,49 @@
+{
+    "name": "Linked Food",
+    "version": "0.2",
+    "manifest_version": 2,
+    "background": {
+        "scripts": ["background.js"]
+    },
+    "page_action": {
+        "default_popup": "panel.html",
+        "default_title": "Suggest Food of Good Materials"
+    },
+    "icons": {
+        "16": "egg16.png",
+        "48": "egg48.png",
+        "128": "egg128.png"
+    },
+    "permissions": [
+        "tabs", "https://icook.tw/*",
+        "http://linkedopendata.tw/*",
+        "https://linkedopendata.tw/*",
+        "http://tad.linkedopendata.tw/*",
+        "http://test.taibon.tw:3030/ds",
+        "https://tap.linkedopendata.tw/sparql",
+        "http://tap.linkedopendata.tw/sparql",
+        "http://store.linkedopendata.tw/sparql",
+        "https://store.linkedopendata.tw/sparql",
+        "http://rest.linkedopendata.tw/sparql",
+        "https://rest.linkedopendata.tw/sparql",
+        "file:///*/*", "geolocation",
+        "http://twebi.net/download/*",
+        "https://www.twfood.cc/*",
+        "http://data.coa.gov.tw:80/*",
+        "http://data.coa.gov.tw/*",
+        "https://data.coa.gov.tw/"
+    ],
+    "web_accessible_resources": [
+        "images/ui-bg_highlight-soft_100_eeeeee_1x100.png",
+        "images/ui-bg_glass_100_f6f6f6_1x400.png",
+        "images/ui-bg_glass_100_fdf5ce_1x400.png",
+        "images/ui-anim_basic_16x16.gif",
+        "images/monotone_close_exit_delete_small.png"
+    ],
+    "content_scripts": [{
+        "matches": ["*://icook.tw/recipes/*", "http://taibon.tw/services/test.html"],
+        "js": ["jquery.js", "jquery.microdata.js", "jquery.microdata.json.js", "rdflib.js", "jquery-ui.min.js", "content.js"],
+        "css": ["jquery-ui.css"],
+        "run_at": "document_idle"
+    }]
+}
