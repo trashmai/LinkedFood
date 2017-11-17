@@ -26,6 +26,8 @@
         "https://store.linkedopendata.tw/sparql",
         "http://rest.linkedopendata.tw/sparql",
         "https://rest.linkedopendata.tw/sparql",
+        "http://jp.linkedopendata.tw/sparql",
+        "https://jp.linkedopendata.tw/sparql",
         "file:///*/*", "geolocation",
         "http://twebi.net/download/*",
         "https://www.twfood.cc/*",
@@ -41,7 +43,7 @@
         "images/monotone_close_exit_delete_small.png"
     ],
     "content_scripts": [{
-        "matches": ["*://icook.tw/recipes/*", "http://taibon.tw/services/test.html"],
+        "matches": ["*://cookpad.com/*", "*://icook.tw/recipes/*", "http://taibon.tw/services/test.html"],
         "js": ["jquery.js", "jquery.microdata.js", "jquery.microdata.json.js", "rdflib.js", "jquery-ui.min.js", "content.js"],
         "css": ["jquery-ui.css"],
         "run_at": "document_idle"

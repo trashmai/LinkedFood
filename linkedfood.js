@@ -131,7 +131,13 @@ function queryQueue() {
 
     $lf.parseRDF = function(str, base, contentType) {
         if (!str || typeof str != 'string') return;
-        $rdf.parse(str, $lf.kb, base, contentType);
+        // add fallback for callback
+        $rdf.parse(str, $lf.kb, base, contentType, function(sth, kb) {
+            console.log("jsonld triple callback");
+            console.log(sth);
+            console.log(kb);
+
+        });
     }
 
     $lf.convertRDF = function(str, base, fromContentType, toContentType = 'text/turtle', _callback) {
@@ -235,27 +241,77 @@ function queryQueue() {
                         }
 
                     } else {
-                        obj.properties.url.forEach(function(o) {
-                            obj_ = o;
-                            $lf.kb.add($rdf.sym(sbj_), SCHEMA(prop), $rdf.sym(obj_));
+                        // bypass the weird statement in icook
+                        if (false && !!obj.properties.url) {
+                            obj.properties.url.forEach(function(o) {
+                                obj_ = o;
+                                $lf.kb.add($rdf.sym(sbj_), SCHEMA(prop), $rdf.sym(obj_));
+                                triples.push({
+                                    s: sbj_,
+                                    p: prop,
+                                    o: obj_
+                                });
+
+                                if (tampered_prop.value != SCHEMA(prop).value) {
+                                    $lf.kb.add($rdf.sym(sbj_), tampered_prop, $rdf.sym(obj_));
+                                    triples.push({
+                                        s: sbj_,
+                                        p: tampered_prop.value,
+                                        o: obj_
+                                    });
+                                }
+
+                                $lf.microdata2nt(obj, o, tamper);
+
+                            })
+                        } else {
+                            // should handle new statement with/without uri (bnode)
+                            if (!window.blankNodeCount) window.blankNodeCount = 0;
+
+                            var blank = "_:b" + window.blankNodeCount;
+                            window.blankNodeCount++;
+
+                            $lf.kb.add($rdf.sym(sbj_), SCHEMA(prop), $rdf.sym(blank));
                             triples.push({
                                 s: sbj_,
                                 p: prop,
-                                o: obj_
+                                o: blank
                             });
 
                             if (tampered_prop.value != SCHEMA(prop).value) {
-                                $lf.kb.add($rdf.sym(sbj_), tampered_prop, $rdf.sym(obj_));
+                                $lf.kb.add($rdf.sym(sbj_), tampered_prop, $rdf.sym(blank));
                                 triples.push({
                                     s: sbj_,
                                     p: tampered_prop.value,
-                                    o: obj_
+                                    o: blank
                                 });
                             }
 
-                            $lf.microdata2nt(obj, o, tamper);
+                            for (prop_of_blank in obj.properties) {
+                                if (!obj.properties.hasOwnProperty(prop_of_blank)) continue;
+                                obj.properties[prop_of_blank].forEach(function(o) {
+                                    obj_of_blank = o;
+                                    $lf.kb.add($rdf.sym(blank), SCHEMA(prop_of_blank), $rdf.sym(obj_of_blank));
+                                    triples.push({
+                                        s: blank,
+                                        p: prop_of_blank,
+                                        o: obj_of_blank
+                                    });
 
-                        })
+                                    if (tampered_prop.value != SCHEMA(prop_of_blank).value) {
+                                        $lf.kb.add($rdf.sym(blank), tampered_prop, $rdf.sym(obj_of_blank));
+                                        triples.push({
+                                            s: blank,
+                                            p: tampered_prop.value,
+                                            o: obj_of_blank
+                                        });
+                                    }
+
+                                    $lf.microdata2nt(obj, blank, tamper);
+
+                                })
+                            }
+                        }
                     }
                 });
             }
@@ -367,12 +423,28 @@ function queryQueue() {
     }
 
     $lf.getIngredientsFromLocal = function(reset = true) {
+
         if (reset) $lf.ingredients = [];
+
         var ingr_prop = SCHEMA('ingredients');
         var stats = $lf.kb.statementsMatching(undefined, ingr_prop);
         stats.forEach(function(stat) {
             $lf.ingredients.push(stat.object);
         });
+
+        // so unexpected
+        var ingr_prop = SCHEMA('recipeIngredient');
+        var stats = $lf.kb.statementsMatching(undefined, ingr_prop);
+        stats.forEach(function(stat) {
+            $lf.ingredients.push(stat.object);
+        });
+
+        var extended_prop = RDF('type');
+        var stats = $lf.kb.statementsMatching(undefined, extended_prop, TAP('Crop'));
+        stats.forEach(function(stat) {
+            $lf.ingredients.push(stat.subject);
+        });
+
         console.log($lf.ingredients);
         return $lf.ingredients;
     }
@@ -582,6 +654,95 @@ function queryQueue() {
         return sparql;
     }
 
+    $lf.generate_sparql_mapping_crop_name = function() {
+        var iris = [];
+        var all_names = [];
+        $lf.ingredients.forEach(function(ingr) {
+            iris.push('<' + ingr.value + '>');
+            if (ingr.value.match(/^https?\/\//)) {
+                var last_part = ingr.value.split('/').pop();
+            } else {
+                var last_part = ingr.value.split(' ')[0];
+            }
+
+            var filtered_name = last_part.split('').filter(function(c) {
+                if (!!c.match(/[ -~]/)) {
+                    return false;
+                }
+                return true;
+            }).join('');
+
+            if (all_names.indexOf(filtered_name) == -1) {
+                if (filtered_name.length > 0)
+                    all_names.push(filtered_name);
+            }
+
+        });
+
+        var filters_regexp = all_names.join('|');
+        if (filters_regexp.length == 0) filters_regexp = "Lorem Ipsum";
+
+        var sparql = `
+            prefix tap: <http://tap.linkedopendata.tw/>
+            prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#>
+            prefix wgs84: <http://www.w3.org/2003/01/geo/wgs84_pos#>
+            prefix vCard: <http://www.w3.org/2006/vcard/>
+            prefix owl: <http://www.w3.org/2002/07/owl#>
+            construct {
+                ?o a tap:Crop.
+                ?o rdfs:label ?crop_name.
+            }
+            where {
+                ?crop a tap:Crop.
+                ?crop rdfs:label ?crop_name.
+                filter regex (?crop_name, '` + filters_regexp + `').
+                ?crop owl:sameAs ?o.
+            }
+        `;
+        return sparql;
+    }
+
+    $lf.generate_sparql_get_jp_crop_prod_place_by_ingredients = function() {
+        var iris = [];
+        var all_names = [];
+
+        $lf.ingredients.forEach(function(ingr) {
+            if (ingr.termType == "NamedNode") {
+                iris.push('<' + ingr.value + '>');
+            }
+        });
+
+        if (iris.length == 0) iris.push("<http://example.org/Lorem_Ipsum>");
+        iris_string = '(' + iris.join(',') + ')';
+
+        var sparql = `
+            prefix tap: <http://tap.linkedopendata.tw/>
+            prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#>
+            prefix wgs84: <http://www.w3.org/2003/01/geo/wgs84_pos#>
+            prefix vCard: <http://www.w3.org/2006/vcard/>
+            prefix owl: <http://www.w3.org/2002/07/owl#>
+            construct {
+                ?place a tap:Place.
+                ?o tap:plantAt ?place.
+                ?o a tap:Crop.
+                ?place rdfs:label ?placename.
+                ?place wgs84:lat ?place_lat.
+                ?place wgs84:long ?place_long.
+            }
+            where {
+                ?crop tap:plantAt ?place.
+                ?place a tap:Place.
+                ?place rdfs:label ?placename.
+                ?crop owl:sameAs ?o.
+                filter (?o IN ` + iris_string + `).
+                ?place wgs84:lat ?place_lat.
+                ?place wgs84:long ?place_long.
+            }
+        `;
+        return sparql;
+    }
+
+
     $lf.queryQueue = new queryQueue();
 
     $lf.queryAllTapsFromRemote = function() {
@@ -601,15 +762,27 @@ function queryQueue() {
         }
     }
 
+    $lf.mappingCropName = function(_callback, args = {}) {
+        var sparql_jp_place = $lf.generate_sparql_mapping_crop_name();
+        $lf.queryQueue.push("https://jp.linkedopendata.tw/sparql", sparql_jp_place);
+        $lf.queryQueue.setCallbackOnDoneOpt({
+            func: _callback,
+            args: args
+        });
+        $lf.queryQueue.run();
+    }
+
     $lf.queryTapsAndStoresAndRestsFromRemote = function(_callback, args = {}) {
         var sparql_tap = $lf.generate_sparql_get_tap_by_ingredients();
         var sparql_store = $lf.generate_sparql_get_store_by_ingredients();
         var sparql_chain_store = $lf.generate_sparql_get_chain_store_by_ingredients();
         var sparql_rest = $lf.generate_sparql_get_rest_by_ingredients();
+        var sparql_jp_place = $lf.generate_sparql_get_jp_crop_prod_place_by_ingredients();
         $lf.queryQueue.push("https://tap.linkedopendata.tw/sparql", sparql_tap);
         $lf.queryQueue.push("https://store.linkedopendata.tw/sparql", sparql_store);
         $lf.queryQueue.push("https://store.linkedopendata.tw/sparql", sparql_chain_store);
         $lf.queryQueue.push("https://rest.linkedopendata.tw/sparql", sparql_rest);
+        $lf.queryQueue.push("https://jp.linkedopendata.tw/sparql", sparql_jp_place);
         $lf.queryQueue.setCallbackOnDoneOpt({
             func: _callback,
             args: args
@@ -725,6 +898,38 @@ function queryQueue() {
 
         }
 
+    }
+
+    $lf.queryProdPlacesByIngredientFromLocal = function(ingredient, options) {
+        if (typeof ingredient !== 'Object') {
+            ingredient = TAPCROP(ingredient);
+        }
+        if (!$lf.queryQueue.process.running) {
+
+            var lat = options.args.center.lat;
+            var long = options.args.center.lng;
+
+            var offset = 0.01;
+            var lat_min = options.args.boundary[0];
+            var long_min = options.args.boundary[1];
+            var lat_max = options.args.boundary[2];
+            var long_max = options.args.boundary[3];
+
+            $lf.queryLocalKB(`
+                PREFIX tap: <http://tap.linkedopendata.tw/>
+                PREFIX wgs84: <http://www.w3.org/2003/01/geo/wgs84_pos#>
+                SELECT ?target ?lat ?long WHERE {
+                    ` + $lf.toIRI(ingredient.value) + ` tap:plantAt ?target.
+                    ?target ?p ?o.
+                    ?target wgs84:lat ?lat.
+                    ?target wgs84:long ?long.
+                    FILTER (?long > ` + long_min + `).
+                    FILTER (?long < ` + long_max + `).
+                    FILTER (?lat > ` + lat_min + `).
+                    FILTER (?lat < ` + lat_max + `).
+                }
+            `, options);
+        }
     }
 
     function onMoveEnd(e) {
